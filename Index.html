@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>롤러코스터 안정성 실험</title>
+<style>
+  body {
+    font-family: 'Malgun Gothic', sans-serif;
+    text-align: center;
+    background-color: #f8f9fa;
+    margin: 0;
+    padding: 20px;
+  }
+  h2 {
+    color: #343a40;
+  }
+  .controls {
+    margin: 20px 0;
+    padding: 15px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    display: inline-block;
+  }
+  select {
+    padding: 8px 12px;
+    font-size: 16px;
+    margin-right: 15px;
+    border-radius: 5px;
+    border: 1px solid #ced4da;
+  }
+  button {
+    padding: 10px 24px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    background-color: #0d6efd;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    transition: background-color 0.2s;
+  }
+  button:hover {
+    background-color: #0b5ed7;
+  }
+  button:disabled {
+    background-color: #6c757d;
+    cursor: not-allowed;
+  }
+  canvas {
+    background: white;
+    border: 2px solid #dee2e6;
+    border-radius: 10px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    max-width: 100%;
+  }
+  .result-board {
+    margin-top: 25px;
+    font-size: 18px;
+    line-height: 1.6;
+    background: #e9ecef;
+    display: inline-block;
+    padding: 20px 40px;
+    border-radius: 10px;
+    min-width: 300px;
+    color: #495057;
+  }
+  .success { color: #198754; font-weight: bold; }
+  .fail { color: #dc3545; font-weight: bold; }
+  .shake-text { color: #fd7e14; font-weight: bold; }
+</style>
+</head>
+<body>
+
+  <h2>🎢 롤러코스터 안정성 실험</h2>
+  
+  <div class="controls">
+    <label for="heightSelect"><strong>시작 높이: </strong></label>
+    <select id="heightSelect">
+      <option value="60">60 cm</option>
+      <option value="80">80 cm</option>
+      <option value="100">100 cm</option>
+      <option value="120" selected>120 cm</option>
+    </select>
+    <button id="startBtn" onclick="startSimulation()">구슬 출발</button>
+  </div>
+
+  <div>
+    <canvas id="simCanvas" width="800" height="400"></canvas>
+  </div>
+
+  <div class="result-board" id="resultBoard">
+    위에서 시작 높이를 선택하고 출발 버튼을 눌러주세요.
+  </div>
+
+<script>
+  const canvas = document.getElementById('simCanvas');
+  const ctx = canvas.getContext('2d');
+  const heightSelect = document.getElementById('heightSelect');
+  const startBtn = document.getElementById('startBtn');
+  
+  let animationId;
+  let isRunning = false;
+  let currentTrackHeight = 120; 
+
+  const startX = 100;
+  const groundY = 320;
+  const loopCenterX = 450;
+  const loopCenterY = 250;
+  const loopRadius = 70;
+  const ballRadius = 12;
+
+  let ball = { x: 0, y: 0, progress: 0, state: 'idle', height: 120, shakeLevel: 0, fallSpeed: 0 };
+
+  function getStartPosY(h) {
+      if (h == 120) return 80;
+      if (h == 100) return 130;
+      if (h == 80) return 180;
+      if (h == 60) return 230;
+      return 80;
+  }
+
+  // 높이 변경 시 호출되는 핵심 로직
+  heightSelect.addEventListener('change', function() {
+      if (!isRunning) {
+          currentTrackHeight = parseInt(this.value);
+          ball.height = currentTrackHeight;
+          
+          // 구슬의 위치를 새로운 시작 지점으로 즉시 갱신
+          ball.x = startX;
+          ball.y = getStartPosY(currentTrackHeight) - ballRadius;
+          ball.state = 'idle';
+          ball.progress = 0;
+          
+          document.getElementById('resultBoard').innerHTML = "높이가 변경되었습니다. 출발 버튼을 눌러주세요.";
+          draw(); 
+      }
+  });
+
+  function drawTrack() {
+     ctx.beginPath();
+     ctx.strokeStyle = '#6c757d';
+     ctx.lineWidth = 6;
+     ctx.lineCap = 'round';
+
+     let startY = getStartPosY(currentTrackHeight);
+     ctx.moveTo(startX, startY);
+     ctx.quadraticCurveTo(250, groundY, loopCenterX, groundY);
+     ctx.stroke();
+
+     ctx.beginPath();
+     ctx.arc(loopCenterX, loopCenterY, loopRadius, Math.PI/2, Math.PI*2.5);
+     ctx.stroke();
+
+     ctx.beginPath();
+     ctx.moveTo(loopCenterX, groundY);
+     ctx.lineTo(750, groundY);
+     ctx.stroke();
+  }
+
+  function draw() {
+     ctx.clearRect(0, 0, canvas.width, canvas.height);
+     
+     ctx.fillStyle = '#adb5bd';
+     ctx.font = '14px Arial';
+     ctx.fillText('120cm', startX - 55, 85);
+     ctx.fillText('100cm', startX - 55, 135);
+     ctx.fillText('80cm', startX - 55, 185);
+     ctx.fillText('60cm', startX - 55, 235);
+     
+     ctx.setLineDash([5, 5]);
+     ctx.beginPath();
+     [80, 130, 180, 230].forEach(y => {
+         ctx.moveTo(startX - 10, y);
+         ctx.lineTo(startX + 10, y);
+     });
+     ctx.stroke();
+     ctx.setLineDash([]);
+
+     drawTrack();
+
+     ctx.beginPath();
+     ctx.fillStyle = '#e63946';
+     let drawX = ball.x;
+     let drawY = ball.y;
+
+     if (ball.state === 'finished' && ball.shakeLevel > 0) {
+         drawX += (Math.random() - 0.5) * ball.shakeLevel * 3;
+         drawY += (Math.random() - 0.5) * ball.shakeLevel * 3;
+     }
+
+     ctx.arc(drawX, drawY, ballRadius, 0, Math.PI * 2);
+     ctx.fill();
+     
+     ctx.beginPath();
+     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+     ctx.arc(drawX - 4, drawY - 4, 4, 0, Math.PI * 2);
+     ctx.fill();
+  }
+
+  function startSimulation() {
+      if (isRunning) return;
+      isRunning = true;
+      startBtn.disabled = true;
+      heightSelect.disabled = true;
+      cancelAnimationFrame(animationId);
+
+      const h = parseInt(heightSelect.value);
+      currentTrackHeight = h;
+      ball.height = h;
+      ball.progress = 0;
+      ball.state = 'moving';
+      ball.shakeLevel = 0;
+      ball.fallSpeed = 0;
+
+      ball.x = startX;
+      ball.y = getStartPosY(h) - ballRadius; 
+
+      document.getElementById('resultBoard').innerHTML = "실험 진행 중... 구슬의 움직임을 관찰하세요.";
+
+      animate();
+  }
+
+  function finishSimulation() {
+      isRunning = false;
+      startBtn.disabled = false;
+      heightSelect.disabled = false;
+  }
+
+  function animate() {
+      if (ball.state === 'moving') {
+          ball.progress += 0.015;
+
+          if (ball.progress <= 1) {
+              const t = ball.progress;
+              const p0 = {x: startX, y: getStartPosY(ball.height)};
+              const p1 = {x: 250, y: groundY};
+              const p2 = {x: loopCenterX, y: groundY};
+
+              let trackX = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
+              let trackY = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
+              
+              ball.x = trackX;
+              ball.y = trackY - ballRadius; 
+
+          } else if (ball.progress > 1 && ball.progress <= 3) {
+              let loopT = (ball.progress - 1) / 2;
+              let angle = Math.PI/2 - (loopT * Math.PI * 2); 
+              let pathRadius = loopRadius - ballRadius; 
+
+              if (ball.height <= 80) {
+                  let maxLoopT = (ball.height == 80) ? 0.38 : 0.22;
+                  if (loopT <= maxLoopT) {
+                       ball.x = loopCenterX + Math.cos(angle) * pathRadius;
+                       ball.y = loopCenterY + Math.sin(angle) * pathRadius;
+                  } else {
+                       ball.state = 'falling';
+                  }
+              } else {
+                  ball.x = loopCenterX + Math.cos(angle) * pathRadius;
+                  ball.y = loopCenterY + Math.sin(angle) * pathRadius;
+              }
+              
+          } else if (ball.progress > 3) {
+              let exitT = ball.progress - 3;
+              ball.x = loopCenterX + exitT * 300;
+              ball.y = groundY - ballRadius;
+
+              if (ball.x >= 700) {
+                  ball.state = 'finished';
+                  ball.shakeLevel = (ball.height === 120) ? 5 : 2;
+                  
+                  let shakeText = (ball.height === 120) ? '<span class="shake-text">5 (매우 심함)</span>' : '2 (조금 흔들림)';
+                  let explanation = (ball.height === 120) 
+                      ? '시작 위치가 너무 높아 도착 시점의 <b>운동에너지</b>가 과도하여 롤러코스터가 심하게 흔들립니다.' 
+                      : '루프를 무사히 통과하면서도 출구에서 안정적인 속도를 유지합니다.';
+
+                  document.getElementById('resultBoard').innerHTML = 
+                      `결과: <span class="success">루프 통과 성공 (O)</span><br>
+                      출구 흔들림 정도: ${shakeText}<br>
+                      <span style="font-size:15px; color:#6c757d;">${explanation}</span>`;
+                  finishSimulation();
+              }
+          }
+      } else if (ball.state === 'falling') {
+          ball.fallSpeed += 0.4;
+          ball.y += ball.fallSpeed;
+          
+          if (ball.y >= groundY - ballRadius) {
+              ball.y = groundY - ballRadius;
+              ball.state = 'failed';
+              document.getElementById('resultBoard').innerHTML = 
+                  `결과: <span class="fail">루프 통과 실패 (X)</span><br>
+                  <span style="font-size:15px; color:#6c757d;">시작 <b>위치에너지</b>가 부족하여 루프 정상에 도달하기 전에 떨어졌습니다.</span>`;
+              finishSimulation();
+          }
+      }
+
+      draw();
+
+      if (ball.state === 'moving' || ball.state === 'falling' || (ball.state === 'finished' && ball.shakeLevel > 0)) {
+          animationId = requestAnimationFrame(animate);
+      }
+  }
+
+  // 초기 렌더링 시 구슬 위치 설정
+  ball.x = startX;
+  ball.y = getStartPosY(currentTrackHeight) - ballRadius;
+  draw();
+</script>
+</body>
+</html>
