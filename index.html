@@ -245,11 +245,11 @@
           <div class="control-group">
             <span class="control-label">시작 높이</span>
             <div class="height-pills" id="heightPills">
-              <button class="height-pill" data-h="40">40 cm</button>
-              <button class="height-pill" data-h="60">60 cm</button>
-              <button class="height-pill" data-h="80">80 cm</button>
-              <button class="height-pill" data-h="100">100 cm</button>
-              <button class="height-pill active" data-h="120">120 cm</button>
+              <button class="height-pill" data-h="40">40 m</button>
+              <button class="height-pill" data-h="60">60 m</button>
+              <button class="height-pill" data-h="80">80 m</button>
+              <button class="height-pill" data-h="100">100 m</button>
+              <button class="height-pill active" data-h="120">120 m</button>
             </div>
           </div>
           <button id="stopBtn" class="stop-btn" onclick="stopSimulation()" disabled>정지</button>
@@ -268,7 +268,7 @@
           <span class="stat-value"><span id="exitSpeedVal">—</span><span class="unit" id="exitSpeedUnit"></span></span>
         </div>
         <div class="stat">
-          <span class="stat-label">출구 운동에너지 (1g 카트)</span>
+          <span class="stat-label">출구 운동에너지 (1 kg 카트)</span>
           <span class="stat-value"><span id="keVal">—</span><span class="unit" id="keUnit"></span></span>
         </div>
         <div class="stat">
@@ -300,19 +300,18 @@
     <p class="footnote">
       <b>실험 가정</b>
       &nbsp;·&nbsp; 중력가속도 g = 9.8 m/s²
-      &nbsp;·&nbsp; 루프 반지름 R = 28 cm (루프 정점 높이 = 56 cm)
+      &nbsp;·&nbsp; 루프 반지름 R = 32 m (루프 정점 높이 = 64 m)
       &nbsp;·&nbsp; 출발 시 초기 속력 = 0
-      &nbsp;·&nbsp; 카트 질량 m = 1 g
+      &nbsp;·&nbsp; 카트 질량 m = 1 kg
       &nbsp;·&nbsp; 루프와 출발 구간은 마찰 무시 (역학적 에너지 보존)
-      &nbsp;·&nbsp; 제동구간 마찰력 f = 9.8 mN (일정하게 작용)
-      &nbsp;·&nbsp; 제동구간 길이 ≈ 1.05 m
+      &nbsp;·&nbsp; 제동구간 마찰력 f = 10 N (일정하게 작용)
+      &nbsp;·&nbsp; 제동구간 길이 = 100 m
       <br>
       <b>물리 원리</b>
-      &nbsp;·&nbsp; 루프 정점 통과 조건: v²<sub>top</sub> ≥ gR  (구심력 ≥ 중력)
-      &nbsp;·&nbsp; 정점 속력: v<sub>top</sub> = √(2g(h − 2R))
-      &nbsp;·&nbsp; 출구 속력: v<sub>exit</sub> = √(2gh)
-      &nbsp;·&nbsp; 이론상 최소 통과 높이 = 2.5 R = 70 cm
-      &nbsp;·&nbsp; 제동거리: 출구 운동에너지 = 마찰력 × 제동거리, ½ m v²<sub>exit</sub> = f · d
+      &nbsp;·&nbsp; 역학적 에너지 = 운동에너지 + 위치에너지
+      &nbsp;·&nbsp; ½운동에너지 = 질량 x 속력의 제곱
+      &nbsp;·&nbsp; 위치에너지 = 질량 x 높이 x 중력가속도
+      &nbsp;·&nbsp; 원형 트랙을 통과하고 난 직후 운동에너지 = 마찰력 × 제동거리
       <br>
       <b>실험 변인</b>
       &nbsp;·&nbsp; 조작 변인: 시작 높이 h
@@ -325,17 +324,18 @@
   // ────────────────────────────────────────────────
   // Physics & geometry constants
   // ────────────────────────────────────────────────
+  // 단위: 길이 m, 질량 kg, 시간 s
   const PHYS = {
     g: 9.8,        // m/s^2
-    R: 0.28,       // 루프 반지름 (m)
+    R: 32,         // 루프 반지름 (m) — 정점 높이 2R = 64 m
     dt: 0.016,     // s
-    m: 0.001,      // 카트 질량 (kg = 1g) — 측정값 표시용
-    mu: 1.0,       // 제동구간 마찰계수
+    m: 1.0,        // 카트 질량 (kg) — 측정값 표시용
+    mu: 10 / 9.8,  // 제동구간 마찰계수 (마찰력 f = μmg = 10 N이 되도록)
   };
 
   // 캔버스 좌표 (px)
-  // 1m → ? px. 캔버스 사용 가능 세로 ≈ 360px, 최대 표현 높이 = 1.2m → 1m ≈ 280px
-  const PX_PER_M = 280;
+  // 실험 변수의 단위가 m이므로 1m → 2.8px 비율로 표시 (시작 높이 120 m → 336 px 사용).
+  const PX_PER_M = 2.8;
 
   // 핵심 좌표 (px)
   // 트랙 구성: approach → loop → smooth exit (마찰 없음) → brake zone (마찰)
@@ -345,9 +345,9 @@
     groundY: 380,           // 지면 높이
     startX: 90,
     loopCenterX: 380,
-    loopRadius: 70,         // 28cm * PX_PER_M ≈ 78, 약간 작게 시각화
-    brakeStartX: 460,       // 마찰 구간 시작 (루프 출구에서 80px 후)
-    trackEndX: 754,         // 마찰 구간 끝 = 트랙 끝
+    loopRadius: 80,         // 시각 표시용 (32 m * PX_PER_M ≈ 90, 약간 작게)
+    brakeStartX: 470,       // 마찰 구간 시작
+    trackEndX: 750,         // 마찰 구간 끝 = 트랙 끝 (구간 길이 280 px = 100 m)
     ballRadius: 9,
   };
   G.loopBottomY = G.groundY;
@@ -355,7 +355,7 @@
   G.loopTopY = G.loopBottomY - 2 * G.loopRadius;
   // 마찰 구간 길이 (m)
   G.brakeZonePx = G.trackEndX - G.brakeStartX;          // 294 px
-  G.brakeZoneM  = G.brakeZonePx / PX_PER_M;             // ≈ 1.05 m
+  G.brakeZoneM  = G.brakeZonePx / PX_PER_M;             // ≈ 105 m
 
   // 카트(롤러코스터) 치수 (px)
   // 카트의 바퀴 면이 트랙의 안쪽 면에 닿도록 동작.
@@ -370,15 +370,15 @@
   const TRACK_HALF = 2.5;  // 트랙 선 두께의 절반 (lineWidth=5)
 
   // 시작 높이 → 시작 Y 픽셀
-  function startY(h_cm) {
-    return G.groundY - (h_cm / 100) * PX_PER_M;
+  function startY(h_m) {
+    return G.groundY - h_m * PX_PER_M;
   }
 
   // ────────────────────────────────────────────────
   // State
   // ────────────────────────────────────────────────
   let state = {
-    h_cm: 120,
+    h_m: 120,
     phase: 'idle',
     // pos: 0~1 along approach, 1~2 around loop, 2~3 along smooth exit (loop bottom → brake zone start)
     // 3~ : 마찰 구간 (브레이크) — phase가 'braking'으로 전환되어 별도 처리
@@ -419,7 +419,7 @@
       if (state.phase === 'moving' || state.phase === 'falling') return;
       els.pills.forEach(p => p.classList.remove('active'));
       pill.classList.add('active');
-      state.h_cm = parseInt(pill.dataset.h, 10);
+      state.h_m = parseInt(pill.dataset.h, 10);
       resetIdle();
     });
   });
@@ -459,7 +459,7 @@
     els.brakeUnit.textContent = '';
     els.brakeBarFill.style.width = '0%';
     els.brakeBarFill.className = 'brake-bar-fill';
-    els.brakeBarLimit.textContent = `${G.brakeZoneM.toFixed(2)} m`;
+    els.brakeBarLimit.textContent = `${G.brakeZoneM.toFixed(0)} m`;
   }
 
   // ────────────────────────────────────────────────
@@ -477,7 +477,7 @@
   // approach: 출발 (startX, startY) → 루프 진입 (loopCenterX, loopBottomY) — 루프 바닥에서 진입
   // 베지어로 자연스럽게. 반환값은 "트랙 위의 점"
   function approachTrackPos(t) {
-    const sy = startY(state.h_cm);
+    const sy = startY(state.h_m);
     const p0 = { x: G.startX, y: sy };
     const p1 = { x: G.startX + 100, y: G.groundY };
     const p2 = { x: G.loopCenterX, y: G.loopBottomY };
@@ -573,7 +573,7 @@
   // v = sqrt(2g(h_start - h))
   function speedAt(yPx) {
     const h = pixToHeight(yPx);
-    const h_start = state.h_cm / 100;
+    const h_start = state.h_m;
     const v_sq = 2 * PHYS.g * (h_start - h);
     return v_sq > 0 ? Math.sqrt(v_sq) : 0;
   }
@@ -612,12 +612,12 @@
     ctx.textAlign = 'right';
     [40, 60, 80, 100, 120].forEach(h => {
       const y = startY(h);
-      const isActive = (h === state.h_cm);
+      const isActive = (h === state.h_m);
       ctx.fillStyle = isActive ? '#0066cc' : '#9a9a9c';
       ctx.font = isActive
         ? 'bold 11px "S-Core Dream 7 ExtraBold", sans-serif'
         : '11px "S-Core Dream 5 Medium", sans-serif';
-      ctx.fillText(`${h}cm`, G.startX - 35, y + 4);
+      ctx.fillText(`${h}m`, G.startX - 35, y + 4);
     });
   }
 
@@ -627,7 +627,7 @@
     ctx.lineWidth = 5;
     ctx.lineCap = 'round';
     ctx.beginPath();
-    const sy = startY(state.h_cm);
+    const sy = startY(state.h_m);
     ctx.moveTo(G.startX, sy);
     ctx.quadraticCurveTo(G.startX + 100, G.groundY, G.loopCenterX, G.loopBottomY);
     ctx.stroke();
@@ -664,7 +664,7 @@
     ctx.font = '11px "S-Core Dream 6 Bold", sans-serif';
     ctx.textAlign = 'center';
     const brakeMidX = (G.brakeStartX + G.trackEndX) / 2;
-    ctx.fillText(`제동구간 (마찰력 ${(PHYS.mu * PHYS.m * PHYS.g * 1000).toFixed(1)} mN)`, brakeMidX, G.groundY - 18);
+    ctx.fillText(`제동구간 (마찰력 ${(PHYS.mu * PHYS.m * PHYS.g).toFixed(0)} N)`, brakeMidX, G.groundY - 18);
     // 제동구간 시작점 표지
     ctx.strokeStyle = 'rgba(217, 119, 6, 0.5)';
     ctx.setLineDash([2, 3]);
@@ -682,14 +682,14 @@
 
     // 출발대 단(launcher tab) 표시
     ctx.fillStyle = '#3d4451';
-    const startSY = startY(state.h_cm);
+    const startSY = startY(state.h_m);
     ctx.fillRect(G.startX - 20, startSY - 6, 14, 6);
 
     // 시작 높이 라벨
     ctx.fillStyle = '#0066cc';
     ctx.font = 'bold 13px "S-Core Dream 7 ExtraBold", sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText(`시작 높이: ${state.h_cm} cm`, G.startX + 10, startSY - 12);
+    ctx.fillText(`시작 높이: ${state.h_m} m`, G.startX + 10, startSY - 12);
   }
 
   function drawGround() {
@@ -845,21 +845,17 @@
         if (state.topSpeed === null && loopT >= 0.5) {
           // h_top = 2R
           const h_top = 2 * PHYS.R;
-          const h_start = state.h_cm / 100;
+          const h_start = state.h_m;
           const v_top_sq = 2 * PHYS.g * (h_start - h_top);
-          if (v_top_sq < 0 || v_top_sq < PHYS.g * PHYS.R) {
-            // 정점 도달 못함 또는 구심력 부족 → 떨어짐
-            // 떨어지는 지점: 정점 이전, 구심력 부족 시점
-            // 단순화: 떨어지는 위치를 측면(angle ≈ 0 또는 π) 부근으로 잡음
+          if (v_top_sq < 0) {
+            // 정점 도달 못함 (위치에너지 부족) → 정점 이전에 떨어짐
             state.phase = 'falling';
-            state.topSpeed = 0;  // 정점 도달 못함
-            // 떨어지는 위치 = 현재 위치
-            // 살짝 위로 던진 듯 fallVx, fallVy 초기화
+            state.topSpeed = 0;
             const fallStartPos = posAt(state.s);
             state.x = fallStartPos.x;
             state.y = fallStartPos.y;
             state.angle = fallStartPos.angle;
-            state.fallVx = state.speed * 0.3 * PX_PER_M / 60;  // px/frame
+            state.fallVx = state.speed * 0.3 * PX_PER_M / 60;
             state.fallVy = -state.speed * 0.5 * PX_PER_M / 60;
             return;
           } else {
@@ -874,7 +870,7 @@
       // 시작 높이 < 2R인 경우, 루프 측면에서 멈춤
       if (cur.segment === 'loop') {
         const loopT = state.s - 1;
-        const h_start = state.h_cm / 100;
+        const h_start = state.h_m;
         // 현재 위치(트랙)의 높이 (m)
         const h_now = pixToHeight(cur.trackY);
         if (h_now > h_start + 0.001 && state.topSpeed === null) {
@@ -964,15 +960,15 @@
   // Telemetry update
   // ────────────────────────────────────────────────
   function updateTelemetry() {
-    els.speedVal.textContent = state.speed.toFixed(2);
+    els.speedVal.textContent = state.speed.toFixed(1);
 
     if (state.exitSpeed !== null) {
-      els.exitSpeedVal.textContent = state.exitSpeed.toFixed(2);
+      els.exitSpeedVal.textContent = state.exitSpeed.toFixed(1);
       els.exitSpeedUnit.textContent = 'm/s';
-      // KE = 0.5 * m * v^2, m=1g=0.001kg
-      const ke = 0.5 * PHYS.m * state.exitSpeed * state.exitSpeed * 1000;  // mJ
-      els.keVal.textContent = ke.toFixed(2);
-      els.keUnit.textContent = 'mJ';
+      // KE = 0.5 * m * v^2, m=1kg
+      const ke = 0.5 * PHYS.m * state.exitSpeed * state.exitSpeed;  // J
+      els.keVal.textContent = ke.toFixed(1);
+      els.keUnit.textContent = 'J';
     } else if (state.phase === 'failed' || (state.phase === 'falling' && state.exitSpeed === null)) {
       els.exitSpeedVal.textContent = '도달 X';
       els.exitSpeedUnit.textContent = '';
@@ -983,14 +979,14 @@
     // 제동거리: 실시간(브레이크 중) 또는 최종
     if (state.phase === 'braking') {
       const liveDist = Math.max(0, (state.x - state.brakeX) / PX_PER_M);
-      els.brakeVal.textContent = liveDist.toFixed(2);
+      els.brakeVal.textContent = liveDist.toFixed(1);
       els.brakeUnit.textContent = 'm';
       const pct = Math.min(100, (liveDist / G.brakeZoneM) * 100);
       els.brakeBarFill.style.width = pct + '%';
       els.brakeBarFill.className = 'brake-bar-fill';
     } else if (state.brakeDist !== null) {
-      const overshot = state.phase === 'failed' || state.brakeDist >= G.brakeZoneM - 0.001;
-      els.brakeVal.textContent = overshot ? `> ${G.brakeZoneM.toFixed(2)}` : state.brakeDist.toFixed(2);
+      const overshot = state.phase === 'failed' || state.brakeDist >= G.brakeZoneM - 0.1;
+      els.brakeVal.textContent = overshot ? `> ${G.brakeZoneM.toFixed(0)}` : state.brakeDist.toFixed(1);
       els.brakeUnit.textContent = 'm';
       const pct = Math.min(100, (state.brakeDist / G.brakeZoneM) * 100);
       els.brakeBarFill.style.width = pct + '%';
@@ -1027,20 +1023,10 @@
       els.resultStatus.className = 'result-status danger';
       els.resultStatus.textContent = 'X';
       els.resultTitle.textContent = '루프 통과 실패';
-      const h = state.h_cm / 100;
       const h_top = 2 * PHYS.R;
-      const v_top_sq = 2 * PHYS.g * (h - h_top);
-      let reason;
-      if (v_top_sq <= 0) {
-        reason = `시작 높이 <b>${state.h_cm} cm</b>가 루프 정점 높이 <b>${(h_top*100).toFixed(0)} cm</b>보다 낮아, 위치에너지만으로는 정점에 도달할 수 없습니다.`;
-      } else {
-        const v_top = Math.sqrt(v_top_sq);
-        const v_required = Math.sqrt(PHYS.g * PHYS.R);
-        reason = `시작 높이 <b>${state.h_cm} cm</b>에서 정점 도달 시 속력은 ${v_top.toFixed(2)} m/s로 예측되지만, 구심력 조건(v ≥ √(gR) ≈ ${v_required.toFixed(2)} m/s)을 만족하지 못해 정점 이전에 떨어집니다.`;
-      }
       els.resultDetail.innerHTML =
-        reason +
-        `<br><br>위치에너지 mgh를 운동에너지로 충분히 전환하려면 시작 높이가 최소 <b>2.5R = ${(2.5*PHYS.R*100).toFixed(0)} cm</b>여야 합니다.`;
+        `시작 높이 <b>${state.h_m} m</b>가 루프 정점 높이 <b>${h_top.toFixed(0)} m</b>보다 낮아, 위치에너지만으로는 정점에 도달할 수 없습니다.` +
+        `<br><br>루프를 통과하려면 시작 높이가 최소 <b>2R = ${h_top.toFixed(0)} m</b> 이상이어야 합니다.`;
       return;
     }
 
@@ -1050,29 +1036,29 @@
       els.resultStatus.textContent = '!';
       els.resultTitle.textContent = '제동 실패 — 트랙 이탈';
       // 이론상 필요 제동거리 = 운동에너지 / 마찰력
-      const ke_mJ = 0.5 * PHYS.m * state.exitSpeed * state.exitSpeed * 1000;  // mJ
-      const f_mN = PHYS.mu * PHYS.m * PHYS.g * 1000;                          // mN
+      const ke_J = 0.5 * PHYS.m * state.exitSpeed * state.exitSpeed;  // J
+      const f_N  = PHYS.mu * PHYS.m * PHYS.g;                         // N
       const d_needed = (state.exitSpeed * state.exitSpeed) / (2 * PHYS.mu * PHYS.g);
       els.resultDetail.innerHTML =
-        `시작 높이 <b>${state.h_cm} cm</b>에서 출구 속력 ≈ <b>${state.exitSpeed.toFixed(2)} m/s</b>로 운동에너지가 과도합니다. ` +
-        `이 운동에너지(${ke_mJ.toFixed(2)} mJ)를 마찰력(${f_mN.toFixed(1)} mN)으로 소모하려면 제동거리 <b>${d_needed.toFixed(2)} m</b>가 필요하지만, ` +
-        `제동구간 길이는 <b>${G.brakeZoneM.toFixed(2)} m</b>뿐이라 카트가 멈추기 전에 트랙 끝을 벗어났습니다.`;
+        `시작 높이 <b>${state.h_m} m</b>에서 출구 속력 ≈ <b>${state.exitSpeed.toFixed(1)} m/s</b>로 운동에너지가 과도합니다. ` +
+        `이 운동에너지(${ke_J.toFixed(1)} J)를 마찰력(${f_N.toFixed(0)} N)으로 소모하려면 제동거리 <b>${d_needed.toFixed(1)} m</b>가 필요하지만, ` +
+        `제동구간 길이는 <b>${G.brakeZoneM.toFixed(0)} m</b>뿐이라 카트가 멈추기 전에 트랙 끝을 벗어났습니다.`;
       return;
     }
 
     if (state.phase === 'finished') {
       const d = state.brakeDist;
       const ratio = d / G.brakeZoneM;
-      const d_str = `<b>${d.toFixed(2)} m</b>`;
-      const v_str = `<b>${state.exitSpeed.toFixed(2)} m/s</b>`;
-      const common = `시작 높이 <b>${state.h_cm} cm</b>에서 루프를 무사히 통과했고, 출구 속력 ${v_str}로 제동구간에 진입해 ${d_str}만에 정지했습니다.`;
+      const d_str = `<b>${d.toFixed(1)} m</b>`;
+      const v_str = `<b>${state.exitSpeed.toFixed(1)} m/s</b>`;
+      const common = `시작 높이 <b>${state.h_m} m</b>에서 루프를 무사히 통과했고, 출구 속력 ${v_str}로 제동구간에 진입해 ${d_str}만에 정지했습니다.`;
 
       if (ratio <= 0.80) {
         els.resultStatus.className = 'result-status safe';
         els.resultStatus.textContent = 'O';
         els.resultTitle.textContent = '안전 통과';
         els.resultDetail.innerHTML = common +
-          ` 제동구간(${G.brakeZoneM.toFixed(2)} m)의 ${(ratio*100).toFixed(0)}%만 사용해 충분한 안전 여유가 있습니다.`;
+          ` 제동구간(${G.brakeZoneM.toFixed(0)} m)의 ${(ratio*100).toFixed(0)}%만 사용해 충분한 안전 여유가 있습니다.`;
       } else if (ratio <= 0.95) {
         els.resultStatus.className = 'result-status warning';
         els.resultStatus.textContent = '△';
@@ -1084,7 +1070,7 @@
         els.resultStatus.textContent = '!';
         els.resultTitle.textContent = '통과 — 한계 도달';
         els.resultDetail.innerHTML = common +
-          ` 제동구간 끝(${G.brakeZoneM.toFixed(2)} m)에 거의 도달해 안전 여유가 거의 없습니다.`;
+          ` 제동구간 끝(${G.brakeZoneM.toFixed(0)} m)에 거의 도달해 안전 여유가 거의 없습니다.`;
       }
     }
   }
@@ -1092,8 +1078,14 @@
   // ────────────────────────────────────────────────
   // Main loop
   // ────────────────────────────────────────────────
+  // 시각화 가속: m 단위에서 트랙이 길어졌으므로 매 프레임 여러 step
+  const SUBSTEPS = 4;
+
   function tick() {
-    step();
+    for (let i = 0; i < SUBSTEPS; i++) {
+      step();
+      if (state.phase === 'failed' || state.phase === 'finished') break;
+    }
     updateTelemetry();
     draw();
     if (state.phase === 'failed' || state.phase === 'finished') {
