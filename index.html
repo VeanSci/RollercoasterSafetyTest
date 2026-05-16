@@ -5,309 +5,1148 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>롤러코스터 안정성 실험</title>
 <style>
-  body {
-    font-family: 'Malgun Gothic', sans-serif;
-    text-align: center;
-    background-color: #f8f9fa;
-    margin: 0;
-    padding: 20px;
+  :root {
+    --canvas: #ffffff;
+    --parchment: #f5f5f7;
+    --ink: #1d1d1f;
+    --ink-muted: #7a7a7a;
+    --action: #0066cc;
+    --hairline: #e0e0e0;
+    --danger: #d62828;
+    --safe: #1d8a4f;
+    --warning: #d97706;
   }
-  h2 {
-    color: #343a40;
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: 'S-Core Dream 4 Regular', 'Pretendard', 'Apple SD Gothic Neo',
+                 'Malgun Gothic', sans-serif;
+    background: var(--parchment); color: var(--ink);
+    -webkit-font-smoothing: antialiased;
   }
+  body { min-height: 100vh; padding: 32px 16px 48px; }
+  .container { max-width: 1080px; margin: 0 auto; }
+  .topbar {
+    display: flex; align-items: baseline; gap: 16px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--hairline);
+    margin-bottom: 32px;
+  }
+  .eyebrow {
+    font-family: 'S-Core Dream 6 Bold', sans-serif;
+    font-size: 12px; color: var(--action); letter-spacing: 2px;
+  }
+  .topbar-spacer { flex: 1; }
+  .topbar-meta {
+    font-family: 'S-Core Dream 3 Light', sans-serif;
+    font-size: 12px; color: var(--ink-muted); letter-spacing: 0.5px;
+  }
+  h1 {
+    font-family: 'S-Core Dream 8 Heavy', sans-serif;
+    font-weight: 800; font-size: 40px;
+    letter-spacing: -1.2px; line-height: 1.1;
+    margin: 0 0 8px; color: var(--ink);
+  }
+  .subtitle {
+    font-family: 'S-Core Dream 5 Medium', sans-serif;
+    font-size: 18px; color: var(--ink-muted);
+    letter-spacing: -0.4px; margin-bottom: 32px;
+  }
+  .stage {
+    display: grid; grid-template-columns: 1fr 320px;
+    gap: 24px; align-items: stretch;
+  }
+  @media (max-width: 880px) { .stage { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: 12px; padding: 24px;
+  }
+  .canvas-pane { display: flex; flex-direction: column; gap: 16px; }
+  .canvas-wrap {
+    background: linear-gradient(to bottom, #f0f4f8 0%, #f5f5f7 70%, #e8eaee 100%);
+    border-radius: 8px; overflow: hidden; position: relative;
+  }
+  canvas { display: block; width: 100%; height: auto; }
   .controls {
-    margin: 20px 0;
-    padding: 15px;
-    background: white;
-    border-radius: 10px;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-    display: inline-block;
+    display: flex; flex-wrap: wrap; gap: 12px;
+    align-items: center; padding: 16px;
+    background: var(--parchment); border-radius: 8px;
   }
-  select {
-    padding: 8px 12px;
-    font-size: 16px;
-    margin-right: 15px;
-    border-radius: 5px;
-    border: 1px solid #ced4da;
+  .control-group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .control-label {
+    font-family: 'S-Core Dream 6 Bold', sans-serif;
+    font-size: 13px; color: var(--ink); letter-spacing: -0.2px;
   }
-  button {
-    padding: 10px 24px;
-    font-size: 16px;
-    font-weight: bold;
-    cursor: pointer;
-    background-color: #0d6efd;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    transition: background-color 0.2s;
+  .height-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .height-pill {
+    font-family: 'S-Core Dream 6 Bold', sans-serif;
+    font-size: 13px; padding: 8px 14px;
+    border-radius: 999px; border: 1px solid var(--hairline);
+    background: var(--canvas); color: var(--ink);
+    cursor: pointer; transition: all 0.15s ease;
+    letter-spacing: -0.2px;
   }
-  button:hover {
-    background-color: #0b5ed7;
+  .height-pill:hover:not(:disabled) {
+    border-color: var(--action); color: var(--action);
   }
-  button:disabled {
-    background-color: #6c757d;
-    cursor: not-allowed;
+  .height-pill.active {
+    background: var(--action); color: white; border-color: var(--action);
   }
-  canvas {
-    background: white;
-    border: 2px solid #dee2e6;
-    border-radius: 10px;
-    box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-    max-width: 100%;
+  .height-pill:disabled { opacity: 0.4; cursor: not-allowed; }
+  .start-btn {
+    font-family: 'S-Core Dream 7 ExtraBold', sans-serif;
+    font-size: 14px; padding: 10px 24px;
+    border-radius: 999px; border: none;
+    background: var(--ink); color: white;
+    cursor: pointer; transition: all 0.15s ease;
+    letter-spacing: -0.2px;
   }
-  .result-board {
-    margin-top: 25px;
-    font-size: 18px;
-    line-height: 1.6;
-    background: #e9ecef;
-    display: inline-block;
-    padding: 20px 40px;
-    border-radius: 10px;
-    min-width: 300px;
-    color: #495057;
+  .start-btn:hover:not(:disabled) { background: var(--action); }
+  .start-btn:disabled { background: var(--ink-muted); cursor: not-allowed; }
+  .stop-btn {
+    font-family: 'S-Core Dream 6 Bold', sans-serif;
+    font-size: 13px; padding: 9px 18px;
+    border-radius: 999px;
+    border: 1px solid var(--hairline);
+    background: var(--canvas); color: var(--ink);
+    cursor: pointer; transition: all 0.15s ease;
+    letter-spacing: -0.2px; margin-left: auto;
   }
-  .success { color: #198754; font-weight: bold; }
-  .fail { color: #dc3545; font-weight: bold; }
-  .shake-text { color: #fd7e14; font-weight: bold; }
+  .stop-btn:hover:not(:disabled) {
+    border-color: var(--danger); color: var(--danger);
+  }
+  .stop-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+  .telemetry { display: flex; flex-direction: column; gap: 16px; }
+  .telemetry h2 {
+    font-family: 'S-Core Dream 7 ExtraBold', sans-serif;
+    font-size: 18px; margin: 0 0 16px;
+    letter-spacing: -0.5px; color: var(--ink);
+  }
+  .stat {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 12px 0; border-bottom: 1px solid var(--hairline);
+  }
+  .stat:last-child { border-bottom: none; }
+  .stat-label {
+    font-family: 'S-Core Dream 5 Medium', sans-serif;
+    font-size: 12px; color: var(--ink-muted); letter-spacing: 0.3px;
+  }
+  .stat-value {
+    font-family: 'S-Core Dream 8 Heavy', sans-serif;
+    font-size: 22px; color: var(--ink); letter-spacing: -0.6px;
+  }
+  .stat-value .unit {
+    font-family: 'S-Core Dream 4 Regular', sans-serif;
+    font-size: 13px; color: var(--ink-muted); margin-left: 4px;
+  }
+  /* shake meter as 5 dots */
+  .shake-dots {
+    display: flex; gap: 4px; margin-top: 4px;
+  }
+  .shake-dot {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--hairline);
+    transition: background 0.2s ease;
+  }
+  .shake-dot.lit { background: var(--action); }
+  .shake-dot.lit.warning { background: var(--warning); }
+  .shake-dot.lit.danger { background: var(--danger); }
+  /* brake bar — 제동거리 시각화 */
+  .brake-bar {
+    position: relative;
+    height: 10px;
+    background: var(--parchment);
+    border: 1px solid var(--hairline);
+    border-radius: 999px;
+    margin-top: 6px;
+    overflow: hidden;
+  }
+  .brake-bar-fill {
+    height: 100%;
+    width: 0;
+    background: var(--safe);
+    transition: width 0.4s ease, background 0.3s ease;
+    border-radius: 999px;
+  }
+  .brake-bar-fill.warning { background: var(--warning); }
+  .brake-bar-fill.danger { background: var(--danger); }
+  .brake-bar-legend {
+    display: flex; justify-content: space-between;
+    margin-top: 4px;
+    font-family: 'S-Core Dream 3 Light', sans-serif;
+    font-size: 10px; color: var(--ink-muted);
+    letter-spacing: 0;
+  }
+  .result {
+    background: var(--canvas);
+    border: 1px solid var(--hairline);
+    border-radius: 12px; padding: 20px 24px;
+    margin-top: 16px;
+    display: flex; align-items: flex-start; gap: 16px;
+  }
+  .result-status {
+    flex-shrink: 0; width: 56px; height: 56px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'S-Core Dream 9 Black', sans-serif;
+    font-size: 28px; color: white;
+    background: var(--ink-muted); letter-spacing: -1px;
+  }
+  .result-status.safe { background: var(--safe); }
+  .result-status.danger { background: var(--danger); }
+  .result-status.warning { background: var(--warning); }
+  .result-body { flex: 1; }
+  .result-title {
+    font-family: 'S-Core Dream 7 ExtraBold', sans-serif;
+    font-size: 18px; margin-bottom: 4px;
+    color: var(--ink); letter-spacing: -0.4px;
+  }
+  .result-detail {
+    font-family: 'S-Core Dream 4 Regular', sans-serif;
+    font-size: 14px; color: var(--ink-muted);
+    line-height: 1.7; letter-spacing: -0.2px;
+  }
+  .result-detail b {
+    font-family: 'S-Core Dream 7 ExtraBold', sans-serif;
+    font-weight: 700; color: var(--action);
+  }
+  .footnote {
+    margin-top: 24px; padding-top: 16px;
+    border-top: 1px solid var(--hairline);
+    font-family: 'S-Core Dream 3 Light', sans-serif;
+    font-size: 11px; color: var(--ink-muted);
+    letter-spacing: -0.2px; line-height: 1.7;
+  }
+  .footnote b {
+    font-family: 'S-Core Dream 5 Medium', sans-serif;
+    color: var(--ink); font-weight: 500;
+  }
 </style>
 </head>
 <body>
+  <div class="container">
+    <div class="topbar">
+      <span class="eyebrow">UNIT 2 · 운동에 숨겨진 비밀, 에너지</span>
+      <span class="topbar-spacer"></span>
+      <span class="topbar-meta">탐구 시뮬레이션 · 평가기준 B · C</span>
+    </div>
 
-  <h2>🎢 롤러코스터 안정성 실험</h2>
-  
-  <div class="controls">
-    <label for="heightSelect"><strong>시작 높이: </strong></label>
-    <select id="heightSelect">
-      <option value="60">60 cm</option>
-      <option value="80">80 cm</option>
-      <option value="100">100 cm</option>
-      <option value="120" selected>120 cm</option>
-    </select>
-    <button id="startBtn" onclick="startSimulation()">구슬 출발</button>
-  </div>
+    <h1>롤러코스터 안정성 실험</h1>
+    <p class="subtitle">시작 높이가 루프 통과 여부와 제동거리에 어떤 영향을 줄까?</p>
 
-  <div>
-    <canvas id="simCanvas" width="800" height="400"></canvas>
-  </div>
+    <div class="stage">
+      <div class="canvas-pane card">
+        <div class="canvas-wrap">
+          <canvas id="simCanvas" width="800" height="420"></canvas>
+        </div>
+        <div class="controls">
+          <div class="control-group">
+            <span class="control-label">시작 높이</span>
+            <div class="height-pills" id="heightPills">
+              <button class="height-pill" data-h="40">40 cm</button>
+              <button class="height-pill" data-h="60">60 cm</button>
+              <button class="height-pill" data-h="80">80 cm</button>
+              <button class="height-pill" data-h="100">100 cm</button>
+              <button class="height-pill active" data-h="120">120 cm</button>
+            </div>
+          </div>
+          <button id="stopBtn" class="stop-btn" onclick="stopSimulation()" disabled>정지</button>
+          <button id="startBtn" class="start-btn" onclick="startSimulation()">구슬 출발 ▶</button>
+        </div>
+      </div>
 
-  <div class="result-board" id="resultBoard">
-    위에서 시작 높이를 선택하고 출발 버튼을 눌러주세요.
+      <aside class="telemetry card">
+        <h2>실시간 측정</h2>
+        <div class="stat">
+          <span class="stat-label">현재 속력</span>
+          <span class="stat-value"><span id="speedVal">0.00</span><span class="unit">m/s</span></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">출구 속력</span>
+          <span class="stat-value"><span id="exitSpeedVal">—</span><span class="unit" id="exitSpeedUnit"></span></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">출구 운동에너지 (1g 카트)</span>
+          <span class="stat-value"><span id="keVal">—</span><span class="unit" id="keUnit"></span></span>
+        </div>
+        <div class="stat">
+          <span class="stat-label">제동거리</span>
+          <span class="stat-value"><span id="brakeVal">—</span><span class="unit" id="brakeUnit"></span></span>
+          <div class="brake-bar" id="brakeBar">
+            <div class="brake-bar-fill" id="brakeBarFill"></div>
+            <div class="brake-bar-limit"></div>
+          </div>
+          <div class="brake-bar-legend">
+            <span>0 m</span>
+            <span id="brakeBarLimit">제동구간 한계</span>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="result" id="resultBoard">
+      <div class="result-status" id="resultStatus">·</div>
+      <div class="result-body">
+        <div class="result-title" id="resultTitle">실험 준비 완료</div>
+        <div class="result-detail" id="resultDetail">
+          왼쪽에서 <b>시작 높이</b>를 선택하고 <b>구슬 출발</b> 버튼을 누르세요.
+          시작 높이가 너무 낮으면 위치에너지가 부족해 루프를 통과하지 못하고, 너무 높으면 제동구간 안에서 멈추지 못해 위험합니다.
+        </div>
+      </div>
+    </div>
+
+    <p class="footnote">
+      <b>실험 가정</b>
+      &nbsp;·&nbsp; 중력가속도 g = 9.8 m/s²
+      &nbsp;·&nbsp; 루프 반지름 R = 28 cm (루프 정점 높이 = 56 cm)
+      &nbsp;·&nbsp; 출발 시 초기 속력 = 0
+      &nbsp;·&nbsp; 카트 질량 m = 1 g
+      &nbsp;·&nbsp; 루프와 출발 구간은 마찰 무시 (역학적 에너지 보존)
+      &nbsp;·&nbsp; 제동구간 마찰력 f = 9.8 mN (일정하게 작용)
+      &nbsp;·&nbsp; 제동구간 길이 ≈ 1.05 m
+      <br>
+      <b>물리 원리</b>
+      &nbsp;·&nbsp; 루프 정점 통과 조건: v²<sub>top</sub> ≥ gR  (구심력 ≥ 중력)
+      &nbsp;·&nbsp; 정점 속력: v<sub>top</sub> = √(2g(h − 2R))
+      &nbsp;·&nbsp; 출구 속력: v<sub>exit</sub> = √(2gh)
+      &nbsp;·&nbsp; 이론상 최소 통과 높이 = 2.5 R = 70 cm
+      &nbsp;·&nbsp; 제동거리: 출구 운동에너지 = 마찰력 × 제동거리, ½ m v²<sub>exit</sub> = f · d
+      <br>
+      <b>실험 변인</b>
+      &nbsp;·&nbsp; 조작 변인: 시작 높이 h
+      &nbsp;·&nbsp; 종속 변인: 루프 통과 여부, 제동거리
+      &nbsp;·&nbsp; 통제 변인: 루프 반지름, 트랙 모양, 카트 질량, 마찰력
+    </p>
   </div>
 
 <script>
-  const canvas = document.getElementById('simCanvas');
-  const ctx = canvas.getContext('2d');
-  const heightSelect = document.getElementById('heightSelect');
-  const startBtn = document.getElementById('startBtn');
-  
-  let animationId;
-  let isRunning = false;
-  let currentTrackHeight = 120; 
+  // ────────────────────────────────────────────────
+  // Physics & geometry constants
+  // ────────────────────────────────────────────────
+  const PHYS = {
+    g: 9.8,        // m/s^2
+    R: 0.28,       // 루프 반지름 (m)
+    dt: 0.016,     // s
+    m: 0.001,      // 카트 질량 (kg = 1g) — 측정값 표시용
+    mu: 1.0,       // 제동구간 마찰계수
+  };
 
-  const startX = 100;
-  const groundY = 320;
-  const loopCenterX = 450;
-  const loopCenterY = 250;
-  const loopRadius = 70;
-  const ballRadius = 12;
+  // 캔버스 좌표 (px)
+  // 1m → ? px. 캔버스 사용 가능 세로 ≈ 360px, 최대 표현 높이 = 1.2m → 1m ≈ 280px
+  const PX_PER_M = 280;
 
-  let ball = { x: 0, y: 0, progress: 0, state: 'idle', height: 120, shakeLevel: 0, fallSpeed: 0 };
+  // 핵심 좌표 (px)
+  // 트랙 구성: approach → loop → smooth exit (마찰 없음) → brake zone (마찰)
+  const G = {
+    canvasW: 800,
+    canvasH: 420,
+    groundY: 380,           // 지면 높이
+    startX: 90,
+    loopCenterX: 380,
+    loopRadius: 70,         // 28cm * PX_PER_M ≈ 78, 약간 작게 시각화
+    brakeStartX: 460,       // 마찰 구간 시작 (루프 출구에서 80px 후)
+    trackEndX: 754,         // 마찰 구간 끝 = 트랙 끝
+    ballRadius: 9,
+  };
+  G.loopBottomY = G.groundY;
+  G.loopCenterY = G.loopBottomY - G.loopRadius;
+  G.loopTopY = G.loopBottomY - 2 * G.loopRadius;
+  // 마찰 구간 길이 (m)
+  G.brakeZonePx = G.trackEndX - G.brakeStartX;          // 294 px
+  G.brakeZoneM  = G.brakeZonePx / PX_PER_M;             // ≈ 1.05 m
 
-  function getStartPosY(h) {
-      if (h == 120) return 80;
-      if (h == 100) return 130;
-      if (h == 80) return 180;
-      if (h == 60) return 230;
-      return 80;
+  // 카트(롤러코스터) 치수 (px)
+  // 카트의 바퀴 면이 트랙의 안쪽 면에 닿도록 동작.
+  // - 직선/곡선 구간: 카트 바퀴가 트랙 위에 놓임 (카트 본체 중심 y = 트랙 y - h/2)
+  // - 원형 루프: 카트 바퀴가 트랙의 안쪽 면에 접함 → 본체 중심은 반지름 (R - h/2)에 위치
+  const CART = {
+    w: 26,            // 차체 길이 (px)
+    h: 12,            // 차체 높이 (px, 바퀴 위 본체)
+    wheelR: 3,        // 바퀴 반지름
+    wheelInset: 5,    // 차체 양 끝에서 바퀴까지의 거리
+  };
+  const TRACK_HALF = 2.5;  // 트랙 선 두께의 절반 (lineWidth=5)
+
+  // 시작 높이 → 시작 Y 픽셀
+  function startY(h_cm) {
+    return G.groundY - (h_cm / 100) * PX_PER_M;
   }
 
-  // 높이 변경 시 호출되는 핵심 로직
-  heightSelect.addEventListener('change', function() {
-      if (!isRunning) {
-          currentTrackHeight = parseInt(this.value);
-          ball.height = currentTrackHeight;
-          
-          // 구슬의 위치를 새로운 시작 지점으로 즉시 갱신
-          ball.x = startX;
-          ball.y = getStartPosY(currentTrackHeight) - ballRadius;
-          ball.state = 'idle';
-          ball.progress = 0;
-          
-          document.getElementById('resultBoard').innerHTML = "높이가 변경되었습니다. 출발 버튼을 눌러주세요.";
-          draw(); 
-      }
+  // ────────────────────────────────────────────────
+  // State
+  // ────────────────────────────────────────────────
+  let state = {
+    h_cm: 120,
+    phase: 'idle',
+    // pos: 0~1 along approach, 1~2 around loop, 2~3 along smooth exit (loop bottom → brake zone start)
+    // 3~ : 마찰 구간 (브레이크) — phase가 'braking'으로 전환되어 별도 처리
+    s: 0,
+    speed: 0,        // m/s
+    x: 0, y: 0,      // 현재 위치 (px) — 카트 본체 중심
+    angle: 0,        // 카트 회전 각도 (rad)
+    fallVy: 0,       // 떨어질 때 y속도 (px/frame)
+    fallVx: 0,       // 떨어질 때 x속도 (px/frame)
+    topSpeed: null,  // m/s
+    exitSpeed: null, // m/s — 마찰 구간 진입 시점 속력
+    brakeDist: null, // m — 실제 제동거리 (0부터 정지까지)
+    brakeX: 0,       // px — 마찰 구간 진입 시점 x (제동거리 측정 기준)
+    settleTimer: 0,
+  };
+  let rafId = null;
+
+  const els = {
+    pills: document.querySelectorAll('.height-pill'),
+    startBtn: document.getElementById('startBtn'),
+    stopBtn: document.getElementById('stopBtn'),
+    speedVal: document.getElementById('speedVal'),
+    exitSpeedVal: document.getElementById('exitSpeedVal'),
+    exitSpeedUnit: document.getElementById('exitSpeedUnit'),
+    keVal: document.getElementById('keVal'),
+    keUnit: document.getElementById('keUnit'),
+    brakeVal: document.getElementById('brakeVal'),
+    brakeUnit: document.getElementById('brakeUnit'),
+    brakeBarFill: document.getElementById('brakeBarFill'),
+    brakeBarLimit: document.getElementById('brakeBarLimit'),
+    resultStatus: document.getElementById('resultStatus'),
+    resultTitle: document.getElementById('resultTitle'),
+    resultDetail: document.getElementById('resultDetail'),
+  };
+
+  els.pills.forEach(pill => {
+    pill.addEventListener('click', () => {
+      if (state.phase === 'moving' || state.phase === 'falling') return;
+      els.pills.forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      state.h_cm = parseInt(pill.dataset.h, 10);
+      resetIdle();
+    });
   });
 
+  function resetIdle() {
+    state.phase = 'idle';
+    state.s = 0;
+    state.speed = 0;
+    state.fallVx = 0; state.fallVy = 0;
+    state.topSpeed = null;
+    state.exitSpeed = null;
+    state.brakeDist = null;
+    state.brakeX = 0;
+    state.settleTimer = 0;
+    // 카트의 시작 위치 = 트랙 위 (출발점), 카트 본체 중심
+    const init = approachPos(0);
+    state.x = init.x;
+    state.y = init.y;
+    state.angle = init.angle;
+    setTelemetryIdle();
+    setResult('idle');
+    if (els.stopBtn) els.stopBtn.disabled = true;
+    if (els.startBtn) {
+      els.startBtn.disabled = false;
+      els.startBtn.textContent = '구슬 출발 ▶';
+    }
+    draw();
+  }
+
+  function setTelemetryIdle() {
+    els.speedVal.textContent = '0.00';
+    els.exitSpeedVal.textContent = '—';
+    els.exitSpeedUnit.textContent = '';
+    els.keVal.textContent = '—';
+    els.keUnit.textContent = '';
+    els.brakeVal.textContent = '—';
+    els.brakeUnit.textContent = '';
+    els.brakeBarFill.style.width = '0%';
+    els.brakeBarFill.className = 'brake-bar-fill';
+    els.brakeBarLimit.textContent = `${G.brakeZoneM.toFixed(2)} m`;
+  }
+
+  // ────────────────────────────────────────────────
+  // Track geometry — 위치를 progress s로부터 계산
+  // s ∈ [0, 1]: approach (start → loop bottom)
+  // s ∈ [1, 2]: around the loop
+  // s ∈ [2, 3]: exit (loop bottom → trackEnd)
+  // 추가로 각 구간의 "현재 높이(m)"를 계산 — 에너지 보존으로 속력 산출
+  // ────────────────────────────────────────────────
+
+  function pixToHeight(yPx) {
+    return Math.max(0, (G.groundY - yPx) / PX_PER_M);
+  }
+
+  // approach: 출발 (startX, startY) → 루프 진입 (loopCenterX, loopBottomY) — 루프 바닥에서 진입
+  // 베지어로 자연스럽게. 반환값은 "트랙 위의 점"
+  function approachTrackPos(t) {
+    const sy = startY(state.h_cm);
+    const p0 = { x: G.startX, y: sy };
+    const p1 = { x: G.startX + 100, y: G.groundY };
+    const p2 = { x: G.loopCenterX, y: G.loopBottomY };
+    const x = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
+    const y = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
+    // 베지어 접선 (미분)
+    const dx = 2*(1-t)*(p1.x - p0.x) + 2*t*(p2.x - p1.x);
+    const dy = 2*(1-t)*(p1.y - p0.y) + 2*t*(p2.y - p1.y);
+    return { x, y, dx, dy };
+  }
+  // approach: 카트 본체 중심 위치 + 진행 각도
+  // 트랙 위에 카트가 올라타도록 법선 방향(위쪽)으로 오프셋
+  function approachPos(t) {
+    const tp = approachTrackPos(t);
+    const len = Math.hypot(tp.dx, tp.dy) || 1;
+    // 진행 방향에서 왼쪽으로 90° 회전한 단위벡터 = (-dy/len, dx/len)
+    // 이 방향이 "위쪽 법선" (트랙이 아래로 볼록한 곡선이므로)
+    // 우리 곡선은 시작점에서 아래로 휘는 형태이므로, 법선이 위를 향하려면 (-dy, dx) 방향을 써야 함
+    const nx = -tp.dy / len;
+    const ny = tp.dx / len;
+    // 위쪽으로 향하도록 (캔버스에서 y 작은 쪽으로) 보정: ny가 음수이면 그대로, 양수이면 뒤집기
+    const sign = ny < 0 ? 1 : -1;
+    const offset = TRACK_HALF + CART.wheelR + CART.h / 2;  // 트랙 표면 → 바퀴 중심 → 차체 중심
+    return {
+      x: tp.x + sign * nx * offset,
+      y: tp.y + sign * ny * offset,
+      angle: Math.atan2(tp.dy, tp.dx),  // 진행 방향 각도 (카트 본체 회전)
+    };
+  }
+  // approach 길이 (대략) — 속력에서 dt당 progress 변환 위해
+  function approachLength() {
+    let L = 0;
+    let prev = approachTrackPos(0);
+    for (let i = 1; i <= 30; i++) {
+      const p = approachTrackPos(i / 30);
+      L += Math.hypot(p.x - prev.x, p.y - prev.y);
+      prev = p;
+    }
+    return L;
+  }
+
+  // loop: 시작 = 루프 바닥 (angle = π/2 = 아래쪽 in canvas coords)
+  // 캔버스 좌표에서 Y는 아래로 증가하므로, "시각적으로 반시계방향"은 angle을 감소시키는 것.
+  // 진행: 바닥(π/2) → 오른쪽(0) → 정점(-π/2) → 왼쪽(-π) → 바닥(-3π/2)
+  // 카트의 바퀴 면이 트랙의 안쪽 면과 접해야 함 → 카트 본체 중심의 반지름 = (loopRadius - wheelR*2 - CART.h/2)
+  function loopPos(t) {
+    // t ∈ [0, 1] — 한 바퀴, 시각적으로 반시계방향 (오른쪽으로 올라감)
+    const angle = Math.PI / 2 - t * 2 * Math.PI;
+    // 트랙(원) 위 점: (loopCenterX + R*cos, loopCenterY + R*sin)
+    // 카트 바퀴가 트랙의 "안쪽 면"(반지름 R - TRACK_HALF)에 접 → 바퀴 중심은 (R - TRACK_HALF - wheelR)
+    // 카트 본체 중심은 더 안쪽으로 CART.h/2
+    const r = G.loopRadius - TRACK_HALF - CART.wheelR - CART.h / 2;
+    const x = G.loopCenterX + r * Math.cos(angle);
+    const y = G.loopCenterY + r * Math.sin(angle);
+    // 카트 진행 방향 = 접선 (반시계방향이므로 angle 감소 → 접선은 angle - π/2 방향)
+    const tangentAngle = angle - Math.PI / 2;
+    return { x, y, angle: tangentAngle };
+  }
+  const LOOP_LENGTH = 2 * Math.PI * G.loopRadius;
+
+  // exit (smooth, 마찰 없음): 루프 바닥 → 마찰 구간 시작점
+  function exitPos(t) {
+    const startEx = G.loopCenterX;
+    const x = startEx + (G.brakeStartX - startEx) * t;
+    // 카트 본체 중심은 지면 위로 (트랙 두께 + 바퀴 + 차체 절반)
+    const y = G.groundY - TRACK_HALF - CART.wheelR - CART.h / 2;
+    return { x, y, angle: 0 };
+  }
+
+  // 현재 progress s에서의 위치
+  // 반환: { x, y, angle, trackY, segment }
+  //  - x, y: 카트 본체 중심 위치 (그리기용)
+  //  - trackY: 트랙 표면의 y (에너지 보존 계산용)
+  //  - angle: 카트 회전 각도 (라디안)
+  function posAt(s) {
+    if (s < 1) {
+      const p = approachPos(s);
+      const tp = approachTrackPos(s);
+      return { x: p.x, y: p.y, angle: p.angle, trackY: tp.y, segment: 'approach' };
+    } else if (s < 2) {
+      const p = loopPos(s - 1);
+      // 트랙 위 점 = 루프 표면 위, 반지름 = loopRadius
+      const a = Math.PI / 2 - (s - 1) * 2 * Math.PI;
+      const trackY = G.loopCenterY + G.loopRadius * Math.sin(a);
+      return { x: p.x, y: p.y, angle: p.angle, trackY, segment: 'loop' };
+    } else {
+      const p = exitPos(Math.min(1, s - 2));
+      return { x: p.x, y: p.y, angle: p.angle, trackY: G.groundY, segment: 'exit' };
+    }
+  }
+
+  // 현재 속력 (m/s) — 에너지 보존: ½v² + gh = gh_start (마찰 무시, 단위 질량당)
+  // v = sqrt(2g(h_start - h))
+  function speedAt(yPx) {
+    const h = pixToHeight(yPx);
+    const h_start = state.h_cm / 100;
+    const v_sq = 2 * PHYS.g * (h_start - h);
+    return v_sq > 0 ? Math.sqrt(v_sq) : 0;
+  }
+
+  // segment별 길이 (미터 단위, 시간 환산용)
+  // path length는 픽셀로 측정되므로 m로 환산
+  let APPROACH_PX, APPROACH_M;
+  function calcLengths() {
+    APPROACH_PX = approachLength();
+    APPROACH_M = APPROACH_PX / PX_PER_M;
+  }
+  const LOOP_M = (2 * Math.PI * PHYS.R);
+  const EXIT_M = (G.brakeStartX - G.loopCenterX) / PX_PER_M;
+
+  // ────────────────────────────────────────────────
+  // Drawing
+  // ────────────────────────────────────────────────
+  const canvas = document.getElementById('simCanvas');
+  const ctx = canvas.getContext('2d');
+
+  function drawAxis() {
+    ctx.strokeStyle = '#c7c7cc';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 3]);
+    [40, 60, 80, 100, 120].forEach(h => {
+      const y = startY(h);
+      ctx.beginPath();
+      ctx.moveTo(G.startX - 30, y);
+      ctx.lineTo(G.startX + 15, y);
+      ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#7a7a7a';
+    ctx.font = '11px "S-Core Dream 5 Medium", sans-serif';
+    ctx.textAlign = 'right';
+    [40, 60, 80, 100, 120].forEach(h => {
+      const y = startY(h);
+      const isActive = (h === state.h_cm);
+      ctx.fillStyle = isActive ? '#0066cc' : '#9a9a9c';
+      ctx.font = isActive
+        ? 'bold 11px "S-Core Dream 7 ExtraBold", sans-serif'
+        : '11px "S-Core Dream 5 Medium", sans-serif';
+      ctx.fillText(`${h}cm`, G.startX - 35, y + 4);
+    });
+  }
+
   function drawTrack() {
-     ctx.beginPath();
-     ctx.strokeStyle = '#6c757d';
-     ctx.lineWidth = 6;
-     ctx.lineCap = 'round';
+    // approach (베지어)
+    ctx.strokeStyle = '#5b6470';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    const sy = startY(state.h_cm);
+    ctx.moveTo(G.startX, sy);
+    ctx.quadraticCurveTo(G.startX + 100, G.groundY, G.loopCenterX, G.loopBottomY);
+    ctx.stroke();
 
-     let startY = getStartPosY(currentTrackHeight);
-     ctx.moveTo(startX, startY);
-     ctx.quadraticCurveTo(250, groundY, loopCenterX, groundY);
-     ctx.stroke();
+    // loop circle
+    ctx.beginPath();
+    ctx.arc(G.loopCenterX, G.loopCenterY, G.loopRadius, 0, Math.PI * 2);
+    ctx.stroke();
 
-     ctx.beginPath();
-     ctx.arc(loopCenterX, loopCenterY, loopRadius, Math.PI/2, Math.PI*2.5);
-     ctx.stroke();
+    // smooth exit (마찰 없음) — 루프 바닥 → 마찰 구간 시작
+    ctx.beginPath();
+    ctx.moveTo(G.loopCenterX, G.groundY);
+    ctx.lineTo(G.brakeStartX, G.groundY);
+    ctx.stroke();
 
-     ctx.beginPath();
-     ctx.moveTo(loopCenterX, groundY);
-     ctx.lineTo(750, groundY);
-     ctx.stroke();
+    // brake zone — 거친 트랙 (점선 + 빗금 패턴)
+    ctx.strokeStyle = '#d97706';  // 주황 — 마찰 강조
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(G.brakeStartX, G.groundY);
+    ctx.lineTo(G.trackEndX, G.groundY);
+    ctx.stroke();
+    // 마찰 빗금 패턴 (트랙 위쪽)
+    ctx.strokeStyle = 'rgba(217, 119, 6, 0.6)';
+    ctx.lineWidth = 1.5;
+    for (let x = G.brakeStartX + 4; x < G.trackEndX; x += 8) {
+      ctx.beginPath();
+      ctx.moveTo(x, G.groundY - 9);
+      ctx.lineTo(x + 5, G.groundY - 2);
+      ctx.stroke();
+    }
+    // 마찰 구간 라벨
+    ctx.fillStyle = '#d97706';
+    ctx.font = '11px "S-Core Dream 6 Bold", sans-serif';
+    ctx.textAlign = 'center';
+    const brakeMidX = (G.brakeStartX + G.trackEndX) / 2;
+    ctx.fillText(`제동구간 (마찰력 ${(PHYS.mu * PHYS.m * PHYS.g * 1000).toFixed(1)} mN)`, brakeMidX, G.groundY - 18);
+    // 제동구간 시작점 표지
+    ctx.strokeStyle = 'rgba(217, 119, 6, 0.5)';
+    ctx.setLineDash([2, 3]);
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(G.brakeStartX, G.groundY - 25);
+    ctx.lineTo(G.brakeStartX, G.groundY + 4);
+    ctx.stroke();
+    // 제동구간 끝점 표지 (트랙 끝)
+    ctx.beginPath();
+    ctx.moveTo(G.trackEndX, G.groundY - 25);
+    ctx.lineTo(G.trackEndX, G.groundY + 4);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 출발대 단(launcher tab) 표시
+    ctx.fillStyle = '#3d4451';
+    const startSY = startY(state.h_cm);
+    ctx.fillRect(G.startX - 20, startSY - 6, 14, 6);
+
+    // 시작 높이 라벨
+    ctx.fillStyle = '#0066cc';
+    ctx.font = 'bold 13px "S-Core Dream 7 ExtraBold", sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText(`시작 높이: ${state.h_cm} cm`, G.startX + 10, startSY - 12);
+  }
+
+  function drawGround() {
+    ctx.fillStyle = '#3a3a3c';
+    ctx.fillRect(0, G.groundY + 4, G.canvasW, 3);
+    ctx.strokeStyle = '#9a9a9c';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < G.canvasW; x += 14) {
+      ctx.beginPath();
+      ctx.moveTo(x, G.groundY + 7);
+      ctx.lineTo(x + 7, G.groundY + 16);
+      ctx.stroke();
+    }
+  }
+
+  function drawCart() {
+    let cx = state.x, cy = state.y;
+    let rot = state.angle || 0;
+
+    // 그림자 (떨어지지 않았을 때만, 지면 위에 표시)
+    if (state.phase !== 'falling' && state.phase !== 'failed') {
+      ctx.fillStyle = 'rgba(0,0,0,0.12)';
+      ctx.beginPath();
+      ctx.ellipse(cx, G.groundY + 3, CART.w * 0.45, CART.h * 0.25, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 카트 본체 좌표계: 카트 진행 방향이 +x, "위"가 -y (트랙 반대 방향)
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+
+    const w = CART.w, h = CART.h;
+    const wR = CART.wheelR;
+    const inset = CART.wheelInset;
+
+    // 바퀴 (차체 아래) — 차체 좌표 기준 +y 쪽
+    ctx.fillStyle = '#2a2a2c';
+    // 앞 바퀴
+    ctx.beginPath();
+    ctx.arc(w/2 - inset, h/2 + wR, wR, 0, Math.PI * 2);
+    ctx.fill();
+    // 뒤 바퀴
+    ctx.beginPath();
+    ctx.arc(-w/2 + inset, h/2 + wR, wR, 0, Math.PI * 2);
+    ctx.fill();
+    // 바퀴 허브
+    ctx.fillStyle = '#6a6a6c';
+    ctx.beginPath();
+    ctx.arc(w/2 - inset, h/2 + wR, wR * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(-w/2 + inset, h/2 + wR, wR * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 차체 (전면이 살짝 둥근 사각형) — 빨간색 그라데이션
+    const grad = ctx.createLinearGradient(0, -h/2, 0, h/2);
+    grad.addColorStop(0, '#ff6b7a');
+    grad.addColorStop(1, '#c1121f');
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    // 앞쪽(오른쪽) 둥근 라운드
+    ctx.moveTo(-w/2, -h/2);
+    ctx.lineTo(w/2 - 4, -h/2);
+    ctx.quadraticCurveTo(w/2, -h/2, w/2, -h/2 + 4);
+    ctx.lineTo(w/2, h/2 - 2);
+    ctx.quadraticCurveTo(w/2, h/2, w/2 - 2, h/2);
+    ctx.lineTo(-w/2 + 2, h/2);
+    ctx.quadraticCurveTo(-w/2, h/2, -w/2, h/2 - 2);
+    ctx.lineTo(-w/2, -h/2 + 2);
+    ctx.quadraticCurveTo(-w/2, -h/2, -w/2 + 2, -h/2);
+    ctx.closePath();
+    ctx.fill();
+
+    // 차체 윗부분 하이라이트
+    ctx.fillStyle = 'rgba(255,255,255,0.25)';
+    ctx.fillRect(-w/2 + 3, -h/2 + 1, w - 6, 2);
+
+    // 좌석 칸막이 (작은 세로선)
+    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, -h/2 + 2);
+    ctx.lineTo(0, h/2 - 2);
+    ctx.stroke();
+
+    // 작은 탑승자(머리) 두 개 — 차체 위로 살짝 튀어나옴
+    ctx.fillStyle = '#ffd8a8';
+    ctx.beginPath();
+    ctx.arc(-w/4, -h/2 - 2, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(w/4, -h/2 - 2, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    // 머리 윤곽
+    ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+    ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    ctx.arc(-w/4, -h/2 - 2, 2.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(w/4, -h/2 - 2, 2.5, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // 차체 앞쪽 코 (선두 표시)
+    ctx.fillStyle = 'rgba(0,0,0,0.18)';
+    ctx.beginPath();
+    ctx.arc(w/2 - 2, 0, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
   }
 
   function draw() {
-     ctx.clearRect(0, 0, canvas.width, canvas.height);
-     
-     ctx.fillStyle = '#adb5bd';
-     ctx.font = '14px Arial';
-     ctx.fillText('120cm', startX - 55, 85);
-     ctx.fillText('100cm', startX - 55, 135);
-     ctx.fillText('80cm', startX - 55, 185);
-     ctx.fillText('60cm', startX - 55, 235);
-     
-     ctx.setLineDash([5, 5]);
-     ctx.beginPath();
-     [80, 130, 180, 230].forEach(y => {
-         ctx.moveTo(startX - 10, y);
-         ctx.lineTo(startX + 10, y);
-     });
-     ctx.stroke();
-     ctx.setLineDash([]);
+    ctx.clearRect(0, 0, G.canvasW, G.canvasH);
+    drawAxis();
+    drawTrack();
+    drawGround();
+    drawCart();
+  }
 
-     drawTrack();
+  // ────────────────────────────────────────────────
+  // Simulation step
+  // ────────────────────────────────────────────────
+  // s 진행 속도 = 현재 속력 / 현재 segment의 m당 비율
+  function step() {
+    if (state.phase === 'moving') {
+      const cur = posAt(state.s);
+      // 현재 속력 (에너지 보존) — 트랙 위 점의 높이 기준
+      state.speed = speedAt(cur.trackY);
+      // 그러나 v=0 같이 멈춰있을 때도 진행하려면 최소 1cm/s 이상
+      const v = Math.max(state.speed, 0.05);
 
-     ctx.beginPath();
-     ctx.fillStyle = '#e63946';
-     let drawX = ball.x;
-     let drawY = ball.y;
+      // segment 별 m/s → ds/dt 환산
+      let dsdt;
+      if (cur.segment === 'approach') {
+        dsdt = v / APPROACH_M;
+      } else if (cur.segment === 'loop') {
+        // 루프 한 바퀴 = 2πR 미터
+        // 속력 v로 진행하므로 angular speed = v / R
+        // s_loop는 0~1이 한 바퀴이므로 ds/dt = (v/R) / (2π)
+        dsdt = v / LOOP_M;
+      } else {
+        dsdt = v / EXIT_M;
+      }
+      state.s += dsdt * PHYS.dt;
 
-     if (ball.state === 'finished' && ball.shakeLevel > 0) {
-         drawX += (Math.random() - 0.5) * ball.shakeLevel * 3;
-         drawY += (Math.random() - 0.5) * ball.shakeLevel * 3;
-     }
+      // 정점 통과 조건 체크 — loop 안에서 t=0.5 (정점) 부근
+      if (cur.segment === 'loop') {
+        const loopT = state.s - 1;
+        // 정점은 loopT = 0.5 (angle = -π/2)
+        // 정점에 처음 도달했을 때만 체크
+        if (state.topSpeed === null && loopT >= 0.5) {
+          // h_top = 2R
+          const h_top = 2 * PHYS.R;
+          const h_start = state.h_cm / 100;
+          const v_top_sq = 2 * PHYS.g * (h_start - h_top);
+          if (v_top_sq < 0 || v_top_sq < PHYS.g * PHYS.R) {
+            // 정점 도달 못함 또는 구심력 부족 → 떨어짐
+            // 떨어지는 지점: 정점 이전, 구심력 부족 시점
+            // 단순화: 떨어지는 위치를 측면(angle ≈ 0 또는 π) 부근으로 잡음
+            state.phase = 'falling';
+            state.topSpeed = 0;  // 정점 도달 못함
+            // 떨어지는 위치 = 현재 위치
+            // 살짝 위로 던진 듯 fallVx, fallVy 초기화
+            const fallStartPos = posAt(state.s);
+            state.x = fallStartPos.x;
+            state.y = fallStartPos.y;
+            state.angle = fallStartPos.angle;
+            state.fallVx = state.speed * 0.3 * PX_PER_M / 60;  // px/frame
+            state.fallVy = -state.speed * 0.5 * PX_PER_M / 60;
+            return;
+          } else {
+            // 통과! 정점 속력 기록
+            state.topSpeed = Math.sqrt(v_top_sq);
+          }
+        }
+      }
 
-     ctx.arc(drawX, drawY, ballRadius, 0, Math.PI * 2);
-     ctx.fill();
-     
-     ctx.beginPath();
-     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-     ctx.arc(drawX - 4, drawY - 4, 4, 0, Math.PI * 2);
-     ctx.fill();
+      // 추가 검사 — 정점 미달 케이스에서 정점 이전에 떨어지는 게 더 자연스러움
+      // h_max_reachable = h_start (출발 높이까지만 올라감)
+      // 시작 높이 < 2R인 경우, 루프 측면에서 멈춤
+      if (cur.segment === 'loop') {
+        const loopT = state.s - 1;
+        const h_start = state.h_cm / 100;
+        // 현재 위치(트랙)의 높이 (m)
+        const h_now = pixToHeight(cur.trackY);
+        if (h_now > h_start + 0.001 && state.topSpeed === null) {
+          // 출발 높이를 넘어갈 수 없음 → 그 지점에서 떨어짐
+          state.phase = 'falling';
+          state.topSpeed = 0;
+          state.x = cur.x;
+          state.y = cur.y;
+          state.angle = cur.angle;
+          state.fallVx = 0.3;
+          state.fallVy = 0;
+          return;
+        }
+      }
+
+      // 위치 갱신
+      const newPos = posAt(state.s);
+      state.x = newPos.x;
+      state.y = newPos.y;
+      state.angle = newPos.angle;
+
+      // 마찰 구간 진입 (smooth exit 끝)
+      if (state.s >= 3) {
+        // 출구 속력 = 마찰 구간 진입 속력 (지면 높이 기준)
+        state.exitSpeed = speedAt(G.groundY);
+        state.phase = 'braking';
+        // 카트 위치를 마찰 구간 시작점으로 정확히 맞춤
+        const entry = exitPos(1);
+        state.x = entry.x;
+        state.y = entry.y;
+        state.angle = 0;
+        state.brakeX = state.x;     // 제동거리 측정 기준점
+        state.speed = state.exitSpeed;
+        return;
+      }
+    }
+
+    if (state.phase === 'braking') {
+      // 일정 마찰: a = μg (감속)
+      const a = PHYS.mu * PHYS.g;  // m/s^2
+      // v' = v - a·dt
+      state.speed = Math.max(0, state.speed - a * PHYS.dt);
+      // 위치: x' = x + v·dt (m → px 환산)
+      const dxPx = state.speed * PHYS.dt * PX_PER_M;
+      state.x += dxPx;
+      state.y = G.groundY - TRACK_HALF - CART.wheelR - CART.h / 2;
+      state.angle = 0;
+
+      // 멈춤 판정
+      if (state.speed <= 0.001) {
+        state.speed = 0;
+        state.brakeDist = (state.x - state.brakeX) / PX_PER_M;
+        state.phase = 'finished';
+        return;
+      }
+      // 트랙 끝을 넘어감 (브레이크 실패)
+      if (state.x >= G.trackEndX) {
+        // 트랙 끝에서 떨어짐 — falling 단계로 전환
+        state.brakeDist = (G.trackEndX - state.brakeX) / PX_PER_M;
+        state.phase = 'falling';
+        // 트랙 끝에서 수평 속도로 날아감
+        state.fallVx = state.speed * PX_PER_M / 60;  // px/frame (60fps 기준)
+        state.fallVy = 0;
+        return;
+      }
+    }
+
+    if (state.phase === 'falling') {
+      // 자유낙하 (px/frame)
+      state.fallVy += 0.45;  // gravity
+      state.x += state.fallVx;
+      state.y += state.fallVy;
+      // 떨어지면서 회전
+      state.angle += 0.15;
+      // 지면 충돌 (카트 본체 중심 기준)
+      const carBottom = CART.h / 2 + CART.wheelR * 2 + TRACK_HALF;
+      if (state.y >= G.groundY - carBottom) {
+        state.y = G.groundY - carBottom;
+        state.fallVy = 0;
+        state.fallVx = 0;
+        state.phase = 'failed';
+      }
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // Telemetry update
+  // ────────────────────────────────────────────────
+  function updateTelemetry() {
+    els.speedVal.textContent = state.speed.toFixed(2);
+
+    if (state.exitSpeed !== null) {
+      els.exitSpeedVal.textContent = state.exitSpeed.toFixed(2);
+      els.exitSpeedUnit.textContent = 'm/s';
+      // KE = 0.5 * m * v^2, m=1g=0.001kg
+      const ke = 0.5 * PHYS.m * state.exitSpeed * state.exitSpeed * 1000;  // mJ
+      els.keVal.textContent = ke.toFixed(2);
+      els.keUnit.textContent = 'mJ';
+    } else if (state.phase === 'failed' || (state.phase === 'falling' && state.exitSpeed === null)) {
+      els.exitSpeedVal.textContent = '도달 X';
+      els.exitSpeedUnit.textContent = '';
+      els.keVal.textContent = '—';
+      els.keUnit.textContent = '';
+    }
+
+    // 제동거리: 실시간(브레이크 중) 또는 최종
+    if (state.phase === 'braking') {
+      const liveDist = Math.max(0, (state.x - state.brakeX) / PX_PER_M);
+      els.brakeVal.textContent = liveDist.toFixed(2);
+      els.brakeUnit.textContent = 'm';
+      const pct = Math.min(100, (liveDist / G.brakeZoneM) * 100);
+      els.brakeBarFill.style.width = pct + '%';
+      els.brakeBarFill.className = 'brake-bar-fill';
+    } else if (state.brakeDist !== null) {
+      const overshot = state.phase === 'failed' || state.brakeDist >= G.brakeZoneM - 0.001;
+      els.brakeVal.textContent = overshot ? `> ${G.brakeZoneM.toFixed(2)}` : state.brakeDist.toFixed(2);
+      els.brakeUnit.textContent = 'm';
+      const pct = Math.min(100, (state.brakeDist / G.brakeZoneM) * 100);
+      els.brakeBarFill.style.width = pct + '%';
+      // 색상: 안전 / 경계 / 위험
+      const ratio = state.brakeDist / G.brakeZoneM;
+      els.brakeBarFill.className = 'brake-bar-fill' +
+        (overshot ? ' danger' : (ratio > 0.95 ? ' danger' : (ratio > 0.80 ? ' warning' : '')));
+    } else if (state.phase === 'failed') {
+      els.brakeVal.textContent = '도달 X';
+      els.brakeUnit.textContent = '';
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // Result evaluation
+  // ────────────────────────────────────────────────
+  function setResult(kind) {
+    const map = {
+      idle: { c: '', s: '·', t: '실험 준비 완료',
+        d: '왼쪽에서 <b>시작 높이</b>를 선택하고 <b>구슬 출발</b> 버튼을 누르세요. 시작 높이가 너무 낮으면 위치에너지가 부족해 루프를 통과하지 못하고, 너무 높으면 운동에너지가 과도해 제동구간 안에서 멈추지 못합니다.' },
+      running: { c: '', s: '▶', t: '실험 진행 중',
+        d: '카트가 트랙을 따라 움직입니다. 우측 측정판에서 <b>현재 속력</b>이 어떻게 변하는지, 루프를 무사히 통과하는지, 제동구간 안에서 멈추는지 관찰하세요.' },
+    };
+    const cfg = map[kind] || map.idle;
+    els.resultStatus.className = 'result-status ' + cfg.c;
+    els.resultStatus.textContent = cfg.s;
+    els.resultTitle.textContent = cfg.t;
+    els.resultDetail.innerHTML = cfg.d;
+  }
+
+  function evaluateOutcome() {
+    // 루프 통과 실패 (제동구간 진입 전에 떨어짐)
+    if (state.phase === 'failed' && state.exitSpeed === null) {
+      els.resultStatus.className = 'result-status danger';
+      els.resultStatus.textContent = 'X';
+      els.resultTitle.textContent = '루프 통과 실패';
+      const h = state.h_cm / 100;
+      const h_top = 2 * PHYS.R;
+      const v_top_sq = 2 * PHYS.g * (h - h_top);
+      let reason;
+      if (v_top_sq <= 0) {
+        reason = `시작 높이 <b>${state.h_cm} cm</b>가 루프 정점 높이 <b>${(h_top*100).toFixed(0)} cm</b>보다 낮아, 위치에너지만으로는 정점에 도달할 수 없습니다.`;
+      } else {
+        const v_top = Math.sqrt(v_top_sq);
+        const v_required = Math.sqrt(PHYS.g * PHYS.R);
+        reason = `시작 높이 <b>${state.h_cm} cm</b>에서 정점 도달 시 속력은 ${v_top.toFixed(2)} m/s로 예측되지만, 구심력 조건(v ≥ √(gR) ≈ ${v_required.toFixed(2)} m/s)을 만족하지 못해 정점 이전에 떨어집니다.`;
+      }
+      els.resultDetail.innerHTML =
+        reason +
+        `<br><br>위치에너지 mgh를 운동에너지로 충분히 전환하려면 시작 높이가 최소 <b>2.5R = ${(2.5*PHYS.R*100).toFixed(0)} cm</b>여야 합니다.`;
+      return;
+    }
+
+    // 제동구간을 벗어나 트랙 끝에서 떨어짐
+    if (state.phase === 'failed' && state.exitSpeed !== null) {
+      els.resultStatus.className = 'result-status danger';
+      els.resultStatus.textContent = '!';
+      els.resultTitle.textContent = '제동 실패 — 트랙 이탈';
+      // 이론상 필요 제동거리 = 운동에너지 / 마찰력
+      const ke_mJ = 0.5 * PHYS.m * state.exitSpeed * state.exitSpeed * 1000;  // mJ
+      const f_mN = PHYS.mu * PHYS.m * PHYS.g * 1000;                          // mN
+      const d_needed = (state.exitSpeed * state.exitSpeed) / (2 * PHYS.mu * PHYS.g);
+      els.resultDetail.innerHTML =
+        `시작 높이 <b>${state.h_cm} cm</b>에서 출구 속력 ≈ <b>${state.exitSpeed.toFixed(2)} m/s</b>로 운동에너지가 과도합니다. ` +
+        `이 운동에너지(${ke_mJ.toFixed(2)} mJ)를 마찰력(${f_mN.toFixed(1)} mN)으로 소모하려면 제동거리 <b>${d_needed.toFixed(2)} m</b>가 필요하지만, ` +
+        `제동구간 길이는 <b>${G.brakeZoneM.toFixed(2)} m</b>뿐이라 카트가 멈추기 전에 트랙 끝을 벗어났습니다.`;
+      return;
+    }
+
+    if (state.phase === 'finished') {
+      const d = state.brakeDist;
+      const ratio = d / G.brakeZoneM;
+      const d_str = `<b>${d.toFixed(2)} m</b>`;
+      const v_str = `<b>${state.exitSpeed.toFixed(2)} m/s</b>`;
+      const common = `시작 높이 <b>${state.h_cm} cm</b>에서 루프를 무사히 통과했고, 출구 속력 ${v_str}로 제동구간에 진입해 ${d_str}만에 정지했습니다.`;
+
+      if (ratio <= 0.80) {
+        els.resultStatus.className = 'result-status safe';
+        els.resultStatus.textContent = 'O';
+        els.resultTitle.textContent = '안전 통과';
+        els.resultDetail.innerHTML = common +
+          ` 제동구간(${G.brakeZoneM.toFixed(2)} m)의 ${(ratio*100).toFixed(0)}%만 사용해 충분한 안전 여유가 있습니다.`;
+      } else if (ratio <= 0.95) {
+        els.resultStatus.className = 'result-status warning';
+        els.resultStatus.textContent = '△';
+        els.resultTitle.textContent = '통과 — 안전 여유 부족';
+        els.resultDetail.innerHTML = common +
+          ` 다만 제동구간의 ${(ratio*100).toFixed(0)}%를 사용해 안전 여유가 부족합니다. 시작 높이를 조금 더 낮추거나 제동구간을 길게 설계해야 합니다.`;
+      } else {
+        els.resultStatus.className = 'result-status warning';
+        els.resultStatus.textContent = '!';
+        els.resultTitle.textContent = '통과 — 한계 도달';
+        els.resultDetail.innerHTML = common +
+          ` 제동구간 끝(${G.brakeZoneM.toFixed(2)} m)에 거의 도달해 안전 여유가 거의 없습니다.`;
+      }
+    }
+  }
+
+  // ────────────────────────────────────────────────
+  // Main loop
+  // ────────────────────────────────────────────────
+  function tick() {
+    step();
+    updateTelemetry();
+    draw();
+    if (state.phase === 'failed' || state.phase === 'finished') {
+      evaluateOutcome();
+      els.startBtn.disabled = false;
+      els.startBtn.textContent = '다시 시도 ↻';
+      els.stopBtn.disabled = true;
+      els.pills.forEach(p => p.disabled = false);
+      return;
+    }
+    rafId = requestAnimationFrame(tick);
   }
 
   function startSimulation() {
-      if (isRunning) return;
-      isRunning = true;
-      startBtn.disabled = true;
-      heightSelect.disabled = true;
-      cancelAnimationFrame(animationId);
-
-      const h = parseInt(heightSelect.value);
-      currentTrackHeight = h;
-      ball.height = h;
-      ball.progress = 0;
-      ball.state = 'moving';
-      ball.shakeLevel = 0;
-      ball.fallSpeed = 0;
-
-      ball.x = startX;
-      ball.y = getStartPosY(h) - ballRadius; 
-
-      document.getElementById('resultBoard').innerHTML = "실험 진행 중... 구슬의 움직임을 관찰하세요.";
-
-      animate();
+    if (state.phase === 'moving' || state.phase === 'falling' || state.phase === 'braking') return;
+    cancelAnimationFrame(rafId);
+    calcLengths();
+    state.phase = 'moving';
+    state.s = 0;
+    state.speed = 0;
+    state.fallVx = 0; state.fallVy = 0;
+    state.topSpeed = null;
+    state.exitSpeed = null;
+    state.brakeDist = null;
+    state.brakeX = 0;
+    state.settleTimer = 0;
+    setTelemetryIdle();
+    els.startBtn.disabled = true;
+    els.startBtn.textContent = '진행 중…';
+    els.stopBtn.disabled = false;
+    els.pills.forEach(p => p.disabled = true);
+    setResult('running');
+    tick();
   }
 
-  function finishSimulation() {
-      isRunning = false;
-      startBtn.disabled = false;
-      heightSelect.disabled = false;
+  function stopSimulation() {
+    if (state.phase === 'idle' || state.phase === 'failed') return;
+    cancelAnimationFrame(rafId);
+    // 진행 중 정지 — 미완 상태로 표시
+    state.phase = 'idle';
+    els.resultStatus.className = 'result-status';
+    els.resultStatus.textContent = '·';
+    els.resultTitle.textContent = '실험 정지';
+    els.resultDetail.innerHTML = '실험을 중간에 정지했습니다. 다시 시작하려면 <b>구슬 출발</b>을 누르세요.';
+    els.startBtn.disabled = false;
+    els.startBtn.textContent = '구슬 출발 ▶';
+    els.stopBtn.disabled = true;
+    els.pills.forEach(p => p.disabled = false);
   }
 
-  function animate() {
-      if (ball.state === 'moving') {
-          ball.progress += 0.015;
-
-          if (ball.progress <= 1) {
-              const t = ball.progress;
-              const p0 = {x: startX, y: getStartPosY(ball.height)};
-              const p1 = {x: 250, y: groundY};
-              const p2 = {x: loopCenterX, y: groundY};
-
-              let trackX = (1-t)*(1-t)*p0.x + 2*(1-t)*t*p1.x + t*t*p2.x;
-              let trackY = (1-t)*(1-t)*p0.y + 2*(1-t)*t*p1.y + t*t*p2.y;
-              
-              ball.x = trackX;
-              ball.y = trackY - ballRadius; 
-
-          } else if (ball.progress > 1 && ball.progress <= 3) {
-              let loopT = (ball.progress - 1) / 2;
-              let angle = Math.PI/2 - (loopT * Math.PI * 2); 
-              let pathRadius = loopRadius - ballRadius; 
-
-              if (ball.height <= 80) {
-                  let maxLoopT = (ball.height == 80) ? 0.38 : 0.22;
-                  if (loopT <= maxLoopT) {
-                       ball.x = loopCenterX + Math.cos(angle) * pathRadius;
-                       ball.y = loopCenterY + Math.sin(angle) * pathRadius;
-                  } else {
-                       ball.state = 'falling';
-                  }
-              } else {
-                  ball.x = loopCenterX + Math.cos(angle) * pathRadius;
-                  ball.y = loopCenterY + Math.sin(angle) * pathRadius;
-              }
-              
-          } else if (ball.progress > 3) {
-              let exitT = ball.progress - 3;
-              ball.x = loopCenterX + exitT * 300;
-              ball.y = groundY - ballRadius;
-
-              if (ball.x >= 700) {
-                  ball.state = 'finished';
-                  ball.shakeLevel = (ball.height === 120) ? 5 : 2;
-                  
-                  let shakeText = (ball.height === 120) ? '<span class="shake-text">5 (매우 심함)</span>' : '2 (조금 흔들림)';
-                  let explanation = (ball.height === 120) 
-                      ? '시작 위치가 너무 높아 도착 시점의 <b>운동에너지</b>가 과도하여 롤러코스터가 심하게 흔들립니다.' 
-                      : '루프를 무사히 통과하면서도 출구에서 안정적인 속도를 유지합니다.';
-
-                  document.getElementById('resultBoard').innerHTML = 
-                      `결과: <span class="success">루프 통과 성공 (O)</span><br>
-                      출구 흔들림 정도: ${shakeText}<br>
-                      <span style="font-size:15px; color:#6c757d;">${explanation}</span>`;
-                  finishSimulation();
-              }
-          }
-      } else if (ball.state === 'falling') {
-          ball.fallSpeed += 0.4;
-          ball.y += ball.fallSpeed;
-          
-          if (ball.y >= groundY - ballRadius) {
-              ball.y = groundY - ballRadius;
-              ball.state = 'failed';
-              document.getElementById('resultBoard').innerHTML = 
-                  `결과: <span class="fail">루프 통과 실패 (X)</span><br>
-                  <span style="font-size:15px; color:#6c757d;">시작 <b>위치에너지</b>가 부족하여 루프 정상에 도달하기 전에 떨어졌습니다.</span>`;
-              finishSimulation();
-          }
-      }
-
-      draw();
-
-      if (ball.state === 'moving' || ball.state === 'falling' || (ball.state === 'finished' && ball.shakeLevel > 0)) {
-          animationId = requestAnimationFrame(animate);
-      }
-  }
-
-  // 초기 렌더링 시 구슬 위치 설정
-  ball.x = startX;
-  ball.y = getStartPosY(currentTrackHeight) - ballRadius;
-  draw();
+  // 초기 그리기
+  calcLengths();
+  resetIdle();
 </script>
 </body>
 </html>
